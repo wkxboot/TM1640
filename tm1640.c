@@ -3,6 +3,10 @@
 
 static tm1640_hal_driver_t* driver;
 
+/*显示缓存16个字节*/
+#define  BUFFER_SIZE                16
+static   uint8_t buffer[BUFFER_SIZE];
+
 
 #ifndef NULL
 #define NULL      ((void*)0)
@@ -65,11 +69,6 @@ static tm1640_hal_driver_t* driver;
 #define  DIS_CTRL_DUTY_14_16        (7)
 
 #define  DIS_CTRL_CMD_MASK          (0x0F)   
-
-
-
-
-
 
 
 
@@ -157,25 +156,71 @@ static void display_data(uint8_t dis_data)
 write_byte(dis_data);
 }
 
-/*指定地址显示，地址不自动增长*/
-int tm1640_display_fixed(uint8_t addr,uint8_t dis_data)
-{
-start();
-set_addr( addr);
-display_data(dis_data);
-end(); 
-return 0;
-}
-/*地址自动增长*/
-int tm1640_display(uint8_t addr,uint8_t *dis_data,uint8_t cnt)
+int tm1640_display_refresh(void)
 {
 uint8_t i;
+
 start();
-set_addr(addr);
-for(i=0;i<cnt;i++){
-display_data(*dis_data++);
+set_addr(0);
+
+for(i=0;i<BUFFER_SIZE;i++){
+display_data(buffer[i]);
 }
+
 end();
+
+return 0;
+}
+
+/*本地显存清零*/
+int tm1640_buffer_clean(void)
+{
+uint8_t i;
+for(i=0;i<BUFFER_SIZE;i++){
+	buffer[i]=0;
+}
+return 0;
+}
+/*
+*addr:0-15
+*cnt :0-16
+*/
+int tm1640_buffer_update(uint8_t addr,uint8_t *update,uint8_t cnt)
+{
+ASSERT_NULL_PTR(update);
+
+if((addr+cnt) > BUFFER_SIZE){
+return -1;
+}
+/*共阴极接法*/
+#if (TM1640_CONNECT_TYPE == TM1640_CONNECT_TYPE_CATHODE)
+uint8_t i;
+for(i=0;i<cnt;i++){
+buffer[addr+i]=*update++;
+}
+/*共阳极接法*/
+#elif (TM1640_CONNECT_TYPE == TM1640_CONNECT_TYPE_ANODE)
+uint8_t i;
+uint8_t update_cnt;
+uint8_t bit_pos;
+uint8_t buffer_addr;
+
+bit_pos=addr & 0x07;
+buffer_addr=addr & 0x01;
+
+for(update_cnt=0;update_cnt<cnt;update_cnt++){
+for(i=0;i<8;i++){
+if(*update &(1<<i)){
+buffer[buffer_addr] |=(1<<bit_pos);
+}else{
+buffer[buffer_addr] &=~(1<<bit_pos);
+}
+buffer_addr+=2;
+}
+update++;
+}
+#endif
+
 return 0;
 }
 
@@ -198,41 +243,8 @@ ASSERT_NULL_PTR(driver->clk_down);
 ASSERT_NULL_PTR(driver->data_set);
 ASSERT_NULL_PTR(driver->data_clr);
 
- set_mode(MODE_CMD_ADDR_FIXED|MODE_CMD_NORMAL_MODE);
- display_ctrl(DIS_CTRL_CMD_ON|DIS_CTRL_DUTY_10_16);
+set_mode(MODE_CMD_ADDR_INCREASE|MODE_CMD_NORMAL_MODE);
+display_ctrl(DIS_CTRL_CMD_ON|DIS_CTRL_DUTY_14_16);
 
- return 0;
+return 0;
 }
-
-
-int tm1640_factory_mode()
-{
-	ASSERT_NULL_PTR(driver);
-	ASSERT_NULL_PTR(driver->clk_rise);
-	ASSERT_NULL_PTR(driver->clk_down);
-	ASSERT_NULL_PTR(driver->data_set);
-	ASSERT_NULL_PTR(driver->data_clr);
-	set_mode(MODE_CMD_FACTORY_MODE);
-	
-	return 0;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

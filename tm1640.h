@@ -4,7 +4,7 @@
 #include "stdint.h"
 
 
-#ifdef  cplusplus
+#ifdef  __cplusplus
 #define TM1640_BEGIN  extern "C" {
 #define TM1640_END    }
 #else
@@ -15,7 +15,11 @@
 
 TM1640_BEGIN
 
-#define CLK_DELAY_TIME             20
+
+#define  TM1640_CONNECT_TYPE_ANODE    1
+#define  TM1640_CONNECT_TYPE_CATHODE  2
+#define  TM1640_CONNECT_TYPE               TM1640_CONNECT_TYPE_CATHODE
+#define  CLK_DELAY_TIME               20
 
 typedef struct
 {
@@ -25,32 +29,27 @@ void (*data_set)(void);
 void (*data_clr)(void);
 }tm1640_hal_driver_t;
 
-
+/*注册硬件驱动*/
 int tm1640_register_hal_driver(tm1640_hal_driver_t *hal_driver);
+/*初始化*/
 int tm1640_init();
-int tm1640_factory_mode();
+/*本地显存清零*/
+int tm1640_buffer_clean(void);
+/*
+*addr:0-15
+*cnt :0-16
+*/
+int tm1640_buffer_update(uint8_t addr,uint8_t *update,uint8_t cnt);
+/*刷新显示*/
+int tm1640_display_refresh(void);
 
-/*addr:0-15 地址自动增长*/
-int tm1640_display(uint8_t addr,uint8_t *dis_data,uint8_t cnt);
-/*指定地址显示，地址不自动增长*/
-int tm1640_display_fixed(uint8_t addr,uint8_t dis_data);
 /*brightness: 0-8*/
 int tm1640_brightness(uint8_t brightness );
 
 
 
 
-
-
-
-
-
 TM1640_END
-
-
-
-
-
 
 
 
